@@ -1,8 +1,9 @@
+import json
 import os
 import configparser
 import pymysql
 
-from flask import Flask, render_template
+from flask import Flask, render_template, jsonify
 from pymysql.cursors import DictCursor
 
 app = Flask(__name__)
@@ -10,23 +11,30 @@ app = Flask(__name__)
 
 @app.route('/')
 def index():
-    # 往模板中传入的数据
-    my_str = 'Hello Word'
-    my_int = 10
-    my_array = [3, 4, 2, 1, 7, 9]
-    my_dict = {
-        'name': 'xiaoming',
-        'age': 18
+    return render_template('/view/index.html')
+
+@app.route('/columnInfo')
+def columnInfo():
+    return render_template('/view/ColumnInfo.html')
+
+@app.route('/queryColumnInfo')
+def queryColumnInfo():
+    sql = r"select column_name, case when is_nullable = 'NO' then '否' else '是' end as is_nullable" \
+          r", data_type, character_maximum_length, case when ifnull(extra,'') = '' then '否' else '是' end as extra" \
+          r", column_comment" \
+          r" from information_schema.columns where table_schema =  '%s' and table_name ='%s'" \
+          % (loadConfig("database", "db"), "biz_order")
+    return packData(queryData(sql))
+
+
+def packData(data):
+    result = {
+        'code': 0,
+        'message': '',
+        'count': len(data),
+        'data': list(data)
     }
-    data = {
-        'my_str': loadConfig("database", "host"),
-        'my_int': queryData("select column_name from information_schema.columns" \
-                            "where table_schema = '%s' and table_name = 'biz_order';" % loadConfig("database", "db")),
-        'my_array': my_array,
-        'my_dict': my_dict
-    }
-    hello = render_template('/view/index.html', data=data)
-    return hello
+    return jsonify(result)
 
 
 # 将首字母转换为小写
@@ -76,14 +84,6 @@ def queryData(sql):
         conn.rollback()
     conn.close()
     return cursor.fetchall()
-
-
-@app.route('/queryColumnInfo')
-def queryColumnInfo():
-    sql = r"select column_name, is_nullable, data_type, character_maximum_length, extra, column_comment" \
-          r" from information_schema.columns where table_schema =  '%s' and table_name ='%s'" \
-          % (loadConfig("database", "db"), "biz_order")
-    return render_template('/view/ColumnInfo.html', datalist=queryData(sql))
 
 
 if __name__ == '__main__':
