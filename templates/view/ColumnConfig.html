@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="renderer" content="webkit">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link rel="stylesheet" href="/static/layui/css/layui.css">
+    <script src="/static/layui/layui.js"></script>
+    <style>
+        /* 防止下拉框的下拉列表被隐藏---必须设置--- 此样式和表格的样式有冲突 如果表格列数太多 会出现错乱的情况 目前我的解决方法是忽略下拉框的美化渲染 <select lay-ignore> */
+        .layui-table-cell {
+            overflow: visible;
+        }
+
+        /* 设置下拉框的高度与表格单元相同 */
+        td .layui-form-select {
+            margin-top: -10px;
+            margin-left: -15px;
+            margin-right: -15px;
+        }
+    </style>
+</head>
+<body style="padding:10px 0 0 10px">
+<form class="layui-form layui-form-pane" action="">
+    <div class="layui-form-item">
+        <label class="layui-form-label">基础包名</label>
+        <div class="layui-col-md1">
+            <input id="inputPackage" type="text" name="packageName" required lay-verify="required" placeholder="请输入"
+                   autocomplete="off" class="layui-input">
+        </div>
+        <label class="layui-form-label" style="margin-left:10px;">页面名称</label>
+        <div class="layui-col-md1">
+            <input id="inputPage" type="text" name="pageName" required lay-verify="required" placeholder="请输入"
+                   autocomplete="off" class="layui-input">
+        </div>
+        <label class="layui-form-label" style="margin-left:10px;">Grid Name</label>
+        <div class="layui-col-md1">
+            <input id="inputGrid" type="text" name="gridName" required lay-verify="required" placeholder="请输入"
+                   autocomplete="off" class="layui-input">
+        </div>
+        <label class="layui-form-label" style="margin-left:10px;">Moc Name</label>
+        <div class="layui-col-md1">
+            <input id="inputMoc" type="text" name="mocName" required lay-verify="required" placeholder="请输入"
+                   autocomplete="off" class="layui-input">
+        </div>
+        <label class="layui-form-label" style="margin-left:10px;">列配置开启</label>
+        <div class="layui-col-md1">
+            <input id="checkColumnCg" type="checkbox" name="checkColumnCg" lay-skin="switch" lay-text="是|否"
+                   lay-filter="switchColumnCg">
+        </div>
+        <label class="layui-form-label" style="">软删除</label>
+        <div class="layui-col-md1">
+            <input id="checkDelFlag" type="checkbox" name="checkDelFlag" lay-skin="switch" lay-text="是|否"
+                   lay-filter="switchDelFlag">
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label" style="">zhiyin处理</label>
+        <div class="layui-col-md1">
+            <input id="checkFactory" type="checkbox" name="checkFactory" lay-skin="switch" lay-text="是|否"
+                   lay-filter="switchFactory">
+        </div>
+        <label class="layui-form-label" style="margin-left:10px;">springboot</label>
+        <div class="layui-col-md1">
+            <input id="checkSpringBoot" type="checkbox" name="checkSpringBoot" lay-skin="switch" lay-text="是|否"
+                   lay-filter="switchSpringBoot">
+        </div>
+        <label class="layui-form-label" style="margin-left:10px;">资源串前缀</label>
+        <div class="layui-col-md1">
+            <input id="inputStrPrefix" type="text" name="strprefix" required lay-verify="required" placeholder="请输入"
+                   autocomplete="off" class="layui-input" value="com.zhiyin.mes.app.">
+        </div>
+        <button type="submit" id="createFile" class="layui-btn" style="margin-left:10px;" lay-submit
+                lay-filter="formFilter">生成文件
+        </button>
+    </div>
+    <table id="columnConfigTable" class="layui-table" lay-filter="tableFilter"></table>
+</form>
+<form id="i18nDialog" class="layui-form  layui-form-pane" style="padding:20px 0 0 40px;display:none">
+    <div class="layui-form-item">
+        <label class="layui-form-label">中文</label>
+        <div class="layui-col-md7">
+            <input id="dialog_cn_name" type="text" required name="dialog_cn_name" lay-reqtext="请输入" placeholder="请输入中文"
+                   autocomplete="off" class="layui-input" lay-filter = "cnNameFilter">
+        </div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">英文</label>
+        <div class="layui-col-md7">
+            <input id="dialog_en_name" type="text" required name="dialog_en_name" lay-reqtext="请输入" placeholder="请输入英文"
+                   autocomplete="off" class="layui-input">
+        </div>
+    </div>
+</form>
+<script>
+    let layer, form, $, table, selectDataBase, selectTable;
+    layui.use(['layer', 'form', 'jquery', 'table'], function () {
+        $("#dialog_cn_name").on("input",function(e){
+            //获取input输入的值
+            console.log(e.delegateTarget.value);
+            let postData = {
+                    'cn_name': e.delegateTarget.value
+                }
+                $.ajax({
+                    url: "/translate",
+                    data: postData,
+                    success: function (data) {
+                        $('#dialog_en_name').val(data);
+                    }
+                })
+        });
+        //类型选择监听
+        function updateTableValue(obj) {
+            let selectElem = $(obj.elem);
+            let tdElem = selectElem.closest('td');
+            let trElem = tdElem.closest('tr');
+            let tableView = trElem.closest('.layui-table-view');
+            table.cache[tableView.attr('lay-id')][trElem.data('index')][tdElem.data('field')] = obj.value;
+        }
+
+        function updateTableValueByData(trElem, data) {
+            let tableView = trElem.closest('.layui-table-view');
+            for (let key in data) {
+                table.cache[tableView.attr('lay-id')][trElem.data('index')][key] = data[key];
+            }
+        }
+
+        form.on('select(typeFilter)', function (obj) {
+            let id = obj.elem.id.split("_")[1];
+            if (obj.value == 'enum') {
+                queryDict(id)
+            } else {
+                $("#selectEnum_" + id).empty();
+                layui.form.render("select");
+            }
+            updateTableValue(obj);
+        });
+        form.on('switch(switchFilter)', function (obj) {
+            let tdElem = obj.othis.parents('tr');
+            let fieldElem = $(obj.elem).closest('td').data('field');
+            let data = {}
+            data[fieldElem]= this.checked == true ? 'on': 'off'
+            updateTableValueByData(tdElem, data);
+        });
+        //枚举监听
+        form.on('select(enumFilter)', function (obj) {
+            updateTableValue(obj);
+        });
+        //i18n选择监听
+        let i18nObj = '';
+        table.on('row(tableFilter)', function (obj) {
+            i18nObj = obj;
+        });
+        form.on('switch(switchI18NFilter)', function (obj) {
+            if (this.checked == true) {
+                layer.open({
+                    type: 1,
+                    area: ['400px', '230px'],
+                    title: '中英文配置',
+                    content: $("#i18nDialog"),
+                    shade: 0.3,
+                    btn: ['确定']
+                    , btn1: function (index, layero) {
+                        if ($("#dialog_cn_name").val() == "") {
+                            layer.msg('请输入中文');
+                            return;
+                        }
+                        if ($("#dialog_en_name").val() == "") {
+                            layer.msg('请输入英文');
+                            return;
+                        }
+                        let trElem = i18nObj.tr;
+                        $(trElem).find("td[data-field='cn_name'] div").text($("#dialog_cn_name").val());
+                        $(trElem).find("td[data-field='en_name'] div").text($("#dialog_en_name").val());
+                        i18nObj.update({
+                            "cn_name": $("#dialog_cn_name").val(),
+                            "en_name": $("#dialog_en_name").val()
+                        });
+                        $("#dialog_cn_name").val('');
+                        $("#dialog_en_name").val('');
+                        updateTableValue(obj);
+                        layer.closeAll();
+                    },
+                    cancel: function (layero, index) {
+                        layer.close();
+                        let em = $(obj.othis[0]);
+                        obj.othis[0].classList.remove('layui-form-onswitch');
+                        em.children('em').text('否');
+                        $("#dialog_cn_name").val('');
+                        $("#dialog_en_name").val('');
+                    }
+                });
+            } else {
+                let trElem = obj.othis.parents('tr');
+                $(trElem).find("td[data-field='cn_name'] div").text("");
+                $(trElem).find("td[data-field='en_name'] div").text("");
+                updateTableValueByData(trElem, {
+                    'cn_name': '',
+                    'en_name': '',
+                    'creat_i18n': 'off'
+                })
+            }
+        });
+        //表格修改监听
+        table.on('edit(tableFilter)', function (obj) {
+            let value = obj.value;
+            let field = obj.field;
+            let tr = obj.tr;
+            let oldtext = $(tr).find("td[data-field='" + obj.field + "'] div").text();
+            if (field == 'column_width') {
+                let r = /^\+?[1-9][0-9]*$/;
+                if (!r.test(value)) {
+                    layer.msg('请输入数字');
+                    $(tr).find("td[data-field='" + field + "'] input").val(oldtext);
+                }
+            } else if (field == 'layout') {
+                let r = /^\+?[1-9][0-9]*:{1}\+?[1-9][0-9]*/;
+                if (!r.test(value)) {
+                    layer.msg('请输入比例,例如1:1');
+                    $(tr).find("td[data-field='" + field + "'] input").val(oldtext);
+                }
+            } else if (field == 'cn_name') {
+                let postData = {
+                    'cn_name': obj.value
+                }
+                $.ajax({
+                    url: "/translate",
+                    data: postData,
+                    success: function (data) {
+                        console.log(data)
+                        $(tr).find("td[data-field='en_name'] div").text(data);
+                    }
+                })
+            }
+            obj.update({
+                field: value
+            });
+        });
+        //提交监听
+        form.on('submit(formFilter)', function (data) {
+            let postParams = data.field;
+            let allData = layui.table.cache["columnConfigTable"];
+            let selectData = layui.table.checkStatus('columnConfigTable').data;
+            let columns = [];
+            if (selectData.length > 0) {
+                allData = selectData;
+            }
+            $.each(allData, function (index, data) {
+                columns.push(data)
+            })
+            for(var idx = 0; idx < columns.length; idx++){
+                var column = columns[idx];
+                if(column.data_type == "string" && (column.character_maximum_length == "" || column.character_maximum_length == null || column.character_maximum_length == undefined)){
+                    layer.msg("请输入"+ column.column_name +"的长度");
+                    return false;
+                }
+                if(column.data_type == "enum" && (column.enum_code == "" || column.enum_code == null || column.enum_code == undefined)){
+                    layer.msg("请选择"+ column.column_name +"的枚举值");
+                    return false;
+                }
+            }
+
+            postParams['columns'] = JSON.stringify(columns);
+            postParams['dataBase'] = selectDataBase;
+            postParams['table'] = selectTable;
+            $.post("/createFile", postParams, function (res) {
+                if (res.success) {
+                    layer.msg(res.message);
+                    return false;
+                } else {
+                    layer.msg(res.message);
+                    return false;
+                }
+            })
+            return false;
+        });
+
+    });
+
+    window.initTable = function (obj) {
+        selectDataBase = obj.database;
+        selectTable = obj.table;
+        layui.use(['layer', 'form', 'jquery', 'table'], function () {
+            layer = layui.layer
+                , form = layui.form
+                , $ = layui.$
+                , table = layui.table;
+        })
+        renderTable('#columnConfigTable', '/queryColumnConfig', obj);
+    };
+
+    function renderTable(id, url, params) {
+        table.render({
+            elem: id,
+            url: url,
+            height: 560,
+            where: params,
+            limit: 30,
+            limits: [30, 60, 90],
+            defaultToolbar: ['filter'],
+            page: true,
+            cols: [[{type: 'checkbox'}
+                , {field: 'column_name', title: '列名', align: 'center'}
+                , {field: 'column_comment', title: '列描述', align: 'center'}
+                , {field: 'data_type', title: '类型', templet: '#selectType', align: 'center'}
+                , {field: 'enum_code', title: '枚举', templet: '#selectEnum', align: 'center'}
+                , {field: 'character_maximum_length', edit: 'text', title: '长度', align: 'center'}
+                , {field: 'column_width', edit: 'text', event: 'inputInt', title: '列宽', align: 'center'}
+                , {field: 'is_hidden', title: '是否隐藏', templet: '#switchHidden', align: 'center'}
+                , {field: 'is_query', title: '是否查询', templet: '#switchQuery', align: 'center'}
+                , {field: 'is_add_hidden', title: '增加隐藏', templet: '#switchAddHidden', align: 'center'}
+                , {field: 'is_edit_hidden', title: '修改隐藏', templet: '#switchEditHidden', align: 'center'}
+                , {field: 'is_edit', title: '可修改', templet: '#switchEdit', align: 'center'}
+                , {field: 'is_required', title: '是否必填', templet: '#switchRequired', align: 'center'}
+                , {field: 'creat_i18n', title: '资源串生成', templet: '#switchI18N', align: 'center'}
+                , {field: 'cn_name', event: 'inputCN', title: '中文名', style: 'overflow:hidden;'}
+                , {field: 'en_name', event: 'inputEN', title: '英文名', style: 'overflow:hidden;'}
+                , {field: 'layout', edit: 'text', event: 'inputPos', title: '位置', align: 'center'}
+
+            ]],
+            text: {
+                none: '暂无相关数据'
+            }
+        });
+    }
+
+    function queryDict(id) {
+        $.post('/queryDicts', {database: selectDataBase}, function (res) {
+            if (res.success) {
+                $("#selectEnum_" + id).empty();
+                $("#selectEnum_" + id).append(new Option('', '请选择'));
+                $.each(res.data, function (index, item) {
+                    $("#selectEnum_" + id).append(new Option(item.value, item.code));
+                })
+                layui.form.render("select");
+            }
+        });
+    }
+</script>
+<script type="text/html" id="switchHidden">
+    <input type="checkbox" lay-skin="switch" lay-filter="switchFilter"
+           lay-text="是|否"  {{ "{{d.is_hidden == 'on' ? 'checked' : '' }}" |safe }}>
+</script>
+<script type="text/html" id="switchQuery">
+    <input type="checkbox" lay-skin="switch" lay-filter="switchFilter"
+           lay-text="是|否" {{ "{{d.is_query == 'on' ? 'checked' : '' }}" |safe }}>
+</script>
+<script type="text/html" id="switchAddHidden">
+    <input type="checkbox" lay-skin="switch" lay-filter="switchFilter"
+           lay-text="是|否" {{ "{{d.is_add_hidden == 'on' ? 'checked' : '' }}" |safe }}>
+</script>
+<script type="text/html" id="switchEditHidden">
+    <input type="checkbox" lay-skin="switch" lay-filter="switchFilter"
+           lay-text="是|否" {{ "{{d.is_edit_hidden == 'on' ? 'checked' : '' }}" |safe }}>
+</script>
+<script type="text/html" id="switchEdit">
+    <input type="checkbox" lay-skin="switch" lay-filter="switchFilter"
+           lay-text="是|否" {{ "{{d.is_edit == 'on' ? 'checked' : '' }}" |safe }}>
+</script>
+<script type="text/html" id="switchRequired">
+    <input type="checkbox" lay-skin="switch" lay-filter="switchFilter"
+           lay-text="是|否" {{ "{{d.is_require == 'on' ? 'checked' : '' }}" |safe }}>
+</script>
+<script type="text/html" id="switchI18N">
+    <input type="checkbox" lay-skin="switch" lay-filter="switchI18NFilter"
+           lay-text="是|否" {{ "{{d.creat_i18n == 'on' ? 'checked' : '' }}" |safe }}>
+</script>
+<script type="text/html" id="selectType">
+    <select id="selectType_{{ "{{d.column_name}}" |safe }}" name="type" lay-filter="typeFilter">
+        <option value="int">int</option>
+        <option value="string" {{ "{{d.data_type== 'string'? 'selected':''}} " |safe }}>string</option>
+        <option value="date" {{ "{{d.data_type== 'date'? 'selected':''}} " |safe }}>date</option>
+        <option value="datetime" {{ "{{d.data_type== 'datetime'? 'selected':''}} " |safe }}>datetime</option>
+        <option value="enum" {{ "{{d.data_type== 'enum'? 'selected':''}} " |safe }}>enum</option>
+    </select>
+</script>
+<script type="text/html" id="selectEnum">
+    <select id="selectEnum_{{ "{{d.column_name}}" |safe }}" lay-filter="enumFilter" lay-search>
+    </select>
+</script>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ViewDefine>
+    <DataGrid id="{{ data.gridName }}">
+        <Columns>
+            <Column name="dummy" type="int">
+                <Field value="ck"/>
+                <Title value=" " chs=" " eng=" " />
+                <Align value="center"/>
+                <CheckBox value="true"/>
+            </Column>
+        {% if data.checkFactory == "true" %}
+            <Column name="FactoryId" type="int" condition="{usertype} == '1'">
+                <Field value="FactoryId"/>
+                <Title value="com.zhiyin.mes.app.factoryid" chs="所属工厂" eng="FactoryId" />
+                <Align value="center"/>
+                <Width value="80"/>
+                <Hidden value="true"/>
+            </Column>
+            <Column name="FactoryName" type="string" condition="{usertype} == '1'">
+                <Field value="FactoryName"/>
+                <Title value="com.zhiyin.mes.app.factoryid" chs="所属工厂" eng="FactoryName" />
+                <Align value="center"/>
+                <Width value="120"/>
+                <Hidden value="false"/>
+            </Column>
+        {% endif %}
+        {% for column in data.layColumns %}
+            <Column name="{{ column.columnName }}" type="{{ column.columnType }}">
+                <Field value="{{ column.columnName }}"/>
+                {% if column.creatI18N == "true" %}
+                <Title value="{{ column.columnI18N }}" chs="{{ column.cnName }}" eng="{{ column.enName }}" />
+                {% else %}
+                <Title value="{{ column.columnName }}" chs="{{ column.columnName }}" eng="{{ column.columnName }}" />
+                {% endif %}
+                <Align value="center"/>
+                <Width value="{{ column.columnWidth }}"/>
+                {% if column.dataType == "enum" %}
+                <Hidden value="true"/>
+                {% else %}
+                <Hidden value="{{ column.isHidden }}"/>
+                {% endif %}
+            </Column>
+            {% if column.dataType == "enum" %}
+            <Column name="{{ column.columnName }}dsp" type="{{ column.columnType }}">
+                <Field value="{{ column.columnName }}dsp"/>
+                {% if column.creatI18N == "true" %}
+                <Title value="{{ column.columnI18N }}" chs="{{ column.cnName }}" eng="{{ column.enName }}" />
+                {% else %}
+                <Title value="{{ column.columnName }}" chs="{{ column.columnName }}" eng="{{ column.columnName }}" />
+                {% endif %}
+                <Align value="center"/>
+                <Hidden value="false"/>
+            </Column>
+            {% endif %}
+        {% endfor %}
+        </Columns>
+
+        <RequestOperation>
+            <RequestUrl id="save" url="../../MesRoot/{{ data.packageName }}/{{ data.pageName }}/save"/>
+            <RequestUrl id="del" url="../../MesRoot/{{ data.packageName }}/{{ data.pageName }}/delete"/>
+            <RequestUrl id="update" url="../../MesRoot/{{ data.packageName }}/{{ data.pageName }}/update"/>
+            <RequestUrl id="findById" url="../../MesRoot/{{ data.packageName }}/{{ data.pageName }}/findById"/>
+        </RequestOperation>
+
+        <Dialog>
+        {% if data.checkFactory == "true" %}
+            <Field id="FactoryId" name="FactoryId" ref="FactoryId" condition="{usertype} == '1'" layout="1:2" required="true" easyuiClass="easyui-combobox" >
+                <Combobox>
+                    <ComboxUrl value="../../MesRoot/Basic/Factory/getFactoryViewList"/>
+                    <ComboxValueField value="id"/>
+                    <ComboxTextField value="name"/>
+                </Combobox>
+            </Field>
+        {% endif %}
+        {% for column in data.layColumns %}
+            {% if column.columnName not in data.dialogFilter %}
+            {% if column.dataType != "enum" %}
+            <Field id="{{ column.columnName }}" name="{{ column.columnName }}" ref="{{ column.columnName }}" required="{{ column.isRequired }}" editable="{{ column.isEdit }}" isAddHidden="{{ column.isAddHidden }}" isEditHidden="{{ column.isEditHidden }}" {% if column.columnName != "id" %}layout="{{ column.layout }}" easyuiClass="{{ column.easyuiClass }}"{% endif %}/>
+            {% elif column.dataType == "enum" %}
+            <Field id="{{ column.columnName }}" name="{{ column.columnName }}" ref="{{ column.columnName }}" layout="{{ column.layout }}" easyuiClass="{{ column.easyuiClass }}">
+                <Combobox>
+                    <ComboxUrl value="../../MesRoot/sysadm/findByCodeCondition?code={{ column.enumCode }}"/>
+                    <ComboxValueField value="code"/>
+                    <ComboxTextField value="name"/>
+                </Combobox>
+            </Field>
+            {% endif %}
+            {% endif %}
+        {% endfor %}
+        </Dialog>
+
+        <Query>
+        {% if data.checkFactory == "true" %}
+            <Field id="FactoryId" ref="FactoryId" condition="{usertype} == '1'" easyuiClass="easyui-combobox" >
+                <Combobox>
+                    <ComboxUrl value="../../MesRoot/Basic/Factory/getFactoryViewList"/>
+                    <ComboxValueField value="id"/>
+                    <ComboxTextField value="name"/>
+                </Combobox>
+            </Field>
+        {% endif %}
+        {% for column in data.layColumns %}
+            {% if column.columnName not in data.queryFilter %}
+            {% if column.dataType == "enum" %}
+            <Field id="{{ column.columnName }}" ref="{{ column.columnName }}" easyuiClass="{{ column.easyuiClass }}">
+                <Combobox>
+                    <ComboxUrl value="../../MesRoot/sysadm/findByCodeCondition?code={{ column.enumCode }}"/>
+                    <ComboxValueField value="code"/>
+                    <ComboxTextField value="name"/>
+                </Combobox>
+            </Field>
+            {% elif column.dataType in ("date", "datetime") %}
+            <Field id="search{{ column.columnName }}from" easyuiClass="{{ column.easyuiClass }}" label="{{ column.columnSearchI18N }}"/>
+            <Field id="search{{ column.columnName }}to" easyuiClass="{{ column.easyuiClass }}" label="com.zhiyin.mes.app.to"/>
+            {% elif column.columnName != "id" %}
+            <Field id="{{ column.columnName }}" ref="{{ column.columnName }}"/>
+            {% endif %}
+            {% endif %}
+        {% endfor %}
+            <Statement isLogger="false" >
+                select ${select_para_list}, b.name as factoryname
+                from ${table} a
+                left join biz_base_factory b on a.factoryid = b.id
+                where 1=1
+                {% if data.checkDelFlag  == "true" %}
+                    and a.delflag = 0
+                {% endif %}
+                ${condition_para_list}
+                order by a.id desc
+            </Statement>
+        </Query>
+    </DataGrid>
+</ViewDefine>

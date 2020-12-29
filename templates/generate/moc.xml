@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Moc name="{{ data.mocName }}" table="{{ data.table }}">
+    <FieldDef>
+    {% for field in data.fields %}
+    {% if field.dataType == "int" %}
+        <Field name="{{ field.columnName }}" type="int"/>
+    {% elif field.dataType == "enum" %}
+        <Field name="{{ field.columnName }}" type="enum" enum="{{ field.enumName }}"/>
+    {% elif field.dataType == "date" %}
+        <Field name="{{ field.columnName }}" type="enum" length="10"/>
+    {% elif field.dataType == "datetime" %}
+        <Field name="{{ field.columnName }}" type="{{ field.dataType }}" length="19"/>
+    {% else %}
+        <Field name="{{ field.columnName }}" type="{{ field.dataType }}" length="{{ field.length }}"/>
+    {% endif %}
+    {% endfor %}
+    </FieldDef>
+    {% if data.enums %}
+    <Enums>
+    {% for key, value in data.enums.items() %}
+        <EnumDef name="{{ key }}">
+            {% for v in value %}
+            <Enum code="{{ v.code }}" display="{{ v.key }}"/>
+            {% endfor %}
+        </EnumDef>
+    {% endfor %}
+    </Enums>
+    {% endif %}
+</Moc>

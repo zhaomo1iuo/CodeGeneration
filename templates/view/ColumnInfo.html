@@ -9,26 +9,142 @@
     <script src="/static/layui/layui.js"></script>
 </head>
 <body>
-    <table class="layui-table" lay-data="{url:'/queryColumnInfo', id:'test3'}">
-        <thead>
-            <tr>
-                <th lay-data="{type:'checkbox'}">ID</th>
-                <th lay-data="{field:'column_name', width:160, sort: true}">列名</th>
-                <th lay-data="{field:'is_nullable', width:100, sort: true}">可为空</th>
-                <th lay-data="{field:'data_type', width:100}">类型</th>
-                <th lay-data="{field:'character_maximum_length', width:100}">长度</th>
-                <th lay-data="{field:'extra', width: 100}">是否自增</th>
-                <th lay-data="{field:'column_comment', width: 300, edit: 'text'}">备注</th>
-            </tr>
-        </thead>
-    </table>
+<form class="layui-form layui-form-pane" action="">
+    <div class="layui-row">
+        <label class="layui-form-label">数据库</label>
+        <div class="layui-col-md2">
+            <select name="selectDataBase" id="selectDataBase" lay-filter="dataBaseFilter" lay-search>
+                <option value="">请选择</option>
+            </select>
+        </div>
+        <label class="layui-form-label" style="margin-left:10px;">表</label>
+        <div class="layui-col-md2">
+            <select name="selectTable" id="selectTable" lay-filter="tableFilter" lay-search>
+                <option value="">请选择</option>
+            </select>
+        </div>
+        <button type="button" id="startConfig" class="layui-btn layui-col-md1" style="margin-left:10px;">开始配置</button>
+    </div>
+    <table id="columnTable" class="layui-table"></table>
+</form>
 <script>
-        layui.use(['layer', 'form', 'jquery', 'table'], function(){
-            let layer = layui.layer
-                , form = layui.form
-                , $ = layui.$
-                , table = layui.table;
+    let layer, form, $, table;
+    layui.use(['layer', 'form', 'jquery', 'table'], function () {
+        layer = layui.layer
+            , form = layui.form
+            , $ = layui.$
+            , table = layui.table;
+        renderTable('#columnTable', '/queryColumns', {})
+        queryDataBases();
+        bindStartConfigEvent();
+        form.on('select(dataBaseFilter)', function (data) {
+            $("#selectTable").empty();
+            $("#selectTable").append(new Option('', '请选择'));
+            if(data.value != ''){
+                queryTables(data.value);
+            }
         });
-    </script>
+        form.on('select(tableFilter)', function (data) {
+            if(data.value != '') {
+                queryColumns($("#selectDataBase").val(), data.value);
+            }
+        });
+
+    });
+
+    function queryDataBases() {
+        $.ajax({
+            url: '/queryDataBases',
+            success: function (res) {
+                if (res.success) {
+                    $("#selectDataBase").empty();
+                    $("#selectDataBase").append(new Option('', '请选择'));
+                    $.each(res.data, function (index, item) {
+                        $("#selectDataBase").append(new Option(item.Database, item.Database));
+                    })
+                    layui.form.render("select");
+                }
+            }
+        });
+    }
+
+    function queryTables(qDataBase) {
+        $.post('/queryTables',{database:qDataBase}, function (res) {
+            if (res.success) {
+                $("#selectTable").empty();
+                $("#selectTable").append(new Option('', '请选择'));
+                $.each(res.data, function (index, item) {
+                    $("#selectTable").append(new Option(item.table_name, item.table_name));
+                })
+                layui.form.render("select");
+            }
+        });
+    }
+
+    function queryColumns(qDataBase, qTable) {
+        var params = {
+            database:qDataBase,
+            table:qTable
+        }
+        renderTable('#columnTable', '/queryColumns', params);
+    }
+
+    function renderTable(id, url, params){
+        table.render({
+            elem: id,
+            url: url,
+            height: 660,
+            where: params,
+            limit: 30,
+            limits: [30,60,90],
+            page: true,
+            cols: [[{type:'checkbox'}
+                , {field:'column_name', title: '列名', align: 'center'}
+                , {field:'is_nullable', title: '可为空', align: 'center'}
+                , {field:'data_type', title: '类型', align: 'center'}
+                , {field:'character_maximum_length', title: '长度', align: 'center'}
+                , {field:'extra', title: '是否自增', align: 'center'}
+                , {field:'column_comment', edit: 'text', title: '备注', align: 'center', minWidth:400}
+            ]],
+            text: {
+                none: '暂无相关数据'
+            }
+        });
+    }
+
+    function bindStartConfigEvent() {
+        $("#startConfig").click(function () {
+            let allData = layui.table.cache["columnTable"];
+            let selectData = layui.table.checkStatus('columnTable').data;
+            let postParams = {};
+            let columns = [];
+            if (selectData.length > 0) {
+                allData = selectData;
+            }
+            $.each(allData, function (index, data){
+                columns.push(data.column_name)
+            })
+            postParams['columns'] = JSON.stringify(columns);
+            postParams['database'] = $("#selectDataBase").val();
+            postParams['table'] = $("#selectTable").val();
+            let iframe = layer.open({
+                id: 'iframe_'+$("#selectTable").val(),
+                type: 2,
+                title: $("#selectTable").val() + '配置',
+                shade: false,
+                area: ['1690px', '700px'],
+                maxmin: true,
+                content: '/columnConfig',
+                zIndex: layer.zIndex,
+                success: function(layero, index){
+                    layer.setTop(layero);
+                    let iframe = window['layui-layer-iframe' + index];
+                    iframe.initTable(postParams);
+                }
+            });
+            layer.full(iframe);
+        });
+    }
+</script>
 </body>
 </html>

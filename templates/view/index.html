@@ -12,62 +12,39 @@
 <div class="layui-layout layui-layout-admin">
     <div class="layui-header">
         <div class="layui-logo">代码生成1.0</div>
-{#            <ul class="layui-nav layui-layout-left">#}
-{#                <li class="layui-nav-item"><a href="">控制台</a></li>#}
-{#                <li class="layui-nav-item"><a href="">商品管理</a></li>#}
-{#                <li class="layui-nav-item"><a href="">用户</a></li>#}
-{#                <li class="layui-nav-item">#}
-{#                <a href="javascript:;">其它系统</a>#}
-{#                    <dl class="layui-nav-child">#}
-{#                    <dd><a href="">邮件管理</a></dd>#}
-{#                    <dd><a href="">消息管理</a></dd>#}
-{#                    <dd><a href="">授权管理</a></dd>#}
-{#                    </dl>#}
-{#                </li>#}
-{#            </ul>#}
-        </div>
+    </div>
     <div class="layui-side layui-bg-black">
         <div class="layui-side-scroll">
-            <ul class="layui-nav layui-nav-tree"  lay-filter="test">
-                <li class="layui-nav-item layui-nav-itemed">
-                    <a class="" href="javascript:;">所有商品</a>
-                    <dl class="layui-nav-child">
-                    <dd><a href="javascript:;">列表一</a></dd>
-                    <dd><a href="javascript:;">列表二</a></dd>
-                    <dd><a href="javascript:;">列表三</a></dd>
-                    <dd><a href="">超链接</a></dd>
-                    </dl>
+            <ul class="layui-nav layui-nav-tree" lay-filter="test">
+                <li class="layui-nav-item"><a href="javascript:void(0);" onclick="pageforward('/configInfo')">默认配置</a>
                 </li>
-                <li class="layui-nav-item">
-                    <a href="javascript:;">解决方案</a>
-                    <dl class="layui-nav-child">
-                        <dd><a href="javascript:;">列表一</a></dd>
-                        <dd><a href="javascript:;">列表二</a></dd>
-                        <dd><a href="">超链接</a></dd>
-                    </dl>
+                <li class="layui-nav-item"><a href="javascript:void(0);" onclick="pageforward('/columnInfo')">页面生成</a>
                 </li>
-                <li class="layui-nav-item"><a href="">云市场</a></li>
-                <li class="layui-nav-item"><a href="">发布商品</a></li>
             </ul>
         </div>
     </div>
 
-  <div class="layui-body">
-    <div style="padding: 15px;">
-         <iframe src="/columnInfo" frameborder="0" id="demoAdmin" style="width: 100%; height: 100%;"></iframe>
+    <div id="mainDiv" class="layui-body">
+        <div style="padding: 15px;">
+            <iframe id="main" src="/columnInfo" frameborder="0" style="width: 100%;height:740px"></iframe>
+        </div>
     </div>
-  </div>
-  <div class="layui-footer">
-    © zhaoyi.com
-  </div>
+    <div class="layui-footer">
+        © zhaoyi.com
+    </div>
 </div>
 <script>
-        layui.use(['layer', 'form', 'jquery', 'table'], function(){
-            let layer = layui.layer
-                , form = layui.form
-                , $ = layui.$
-                , table = layui.table;
-        });
-    </script>
+    layui.use(['layer', 'form', 'jquery', 'table'], function () {
+        let layer = layui.layer
+            , form = layui.form
+            , $ = layui.$
+            , table = layui.table;
+        pageforward('/configInfo');
+    });
+
+    function pageforward(url) {
+        document.getElementById('main').src = url;
+    }
+</script>
 </body>
 </html>
